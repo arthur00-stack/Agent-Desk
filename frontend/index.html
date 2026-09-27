@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alpha Desk</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+<meta name="description" content="Une desk de recherche IA : quatre analystes débattent, un Portfolio Manager tranche.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header class="masthead">
+    <div class="wordmark">Alpha Desk</div>
+    <div class="status-line"><span id="status-dot" class="status-dot"></span><span id="status-text">Desk prête</span></div>
+  </header>
+  <p class="tagline">Quatre analystes IA débattent d'un titre. Un Portfolio Manager tranche.</p>
+
+  <form id="desk-form" class="console" autocomplete="off">
+    <input id="ticker" class="field field-ticker" placeholder="NVDA" value="NVDA" maxlength="6" aria-label="Ticker">
+    <input id="query" class="field field-query" placeholder="Faut-il regarder ce titre avant les résultats ?" aria-label="Question">
+    <button type="button" id="mic" class="btn btn-icon" aria-label="Poser la question à l'oral">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+    </button>
+    <button type="submit" id="go" class="btn btn-primary">Convoquer la desk</button>
+  </form>
+  <p id="mic-status" class="mic-status" hidden></p>
+
+  <p id="run-status" class="run-status" role="status" aria-live="polite"></p>
+  <div id="degraded-banner" class="degraded-banner" hidden></div>
+
+  <div id="feed" class="feed"></div>
+  <div id="memo" class="memo" hidden></div>
+
+  <footer class="footer">
+    <p class="footer-tools">Construit avec OpenAI, Finnhub, Pipelex, Gradium et Dust.</p>
+    <p class="footer-legal">Projet de hackathon à but pédagogique — pas un conseil en investissement.</p>
+  </footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

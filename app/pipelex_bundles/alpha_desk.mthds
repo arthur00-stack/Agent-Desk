@@ -1,0 +1,147 @@
+domain      = "alpha_desk"
+description = "Desk de recherche IA : 3 analystes en parallele, un agent risque qui les challenge, un portfolio manager qui arbitre"
+main_pipe   = "run_desk"
+
+# ------------------------------------------------------------------
+# Pipeline principal : sequence deterministe en 3 etapes
+# ------------------------------------------------------------------
+[pipe.run_desk]
+type        = "PipeSequence"
+description = "Lance la desk complete sur un ticker : analystes paralleles, puis risque, puis arbitrage final"
+inputs      = { ticker = "Text", sector = "Text", news = "Text", snapshot = "Text", query = "Text" }
+output      = "Text"
+steps = [
+  { pipe = "run_specialists", result = "specialists" },
+  { pipe = "challenge_risk",  result = "risk" },
+  { pipe = "arbitrate",       result = "memo" },
+]
+
+# ------------------------------------------------------------------
+# Etape 1 : les 3 analystes specialises tournent en parallele
+# ------------------------------------------------------------------
+[pipe.run_specialists]
+type            = "PipeParallel"
+description     = "Macro, fondamental et technique analysent le meme actif en parallele"
+inputs          = { ticker = "Text", sector = "Text", news = "Text", snapshot = "Text", query = "Text" }
+output          = "Composite"
+add_each_output = true
+branches = [
+  { pipe = "analyze_macro",         result = "macro" },
+  { pipe = "analyze_fundamentals",  result = "fundamentals" },
+  { pipe = "analyze_technical",     result = "technical" },
+]
+
+[pipe.analyze_macro]
+type          = "PipeLLM"
+description   = "Stance macro sur l'actif"
+inputs        = { ticker = "Text", sector = "Text", news = "Text", query = "Text" }
+output        = "Text"
+system_prompt = """
+Tu es l'analyste MACRO d'une desk de trading IA. Tu evalues l'environnement macroeconomique
+(taux, inflation, sentiment de marche, dynamique du secteur) et son impact probable sur l'actif etudie.
+Reponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format :
+{"stance": "bullish|bearish|neutral", "confidence": 0.0-1.0, "reasoning": "...", "key_points": ["...", "..."]}
+"""
+prompt = """
+Actif etudie : $ticker. Secteur : $sector.
+Actualites recentes :
+@news
+
+Question de l'utilisateur : $query
+Donne ta stance macro sur cet actif.
+"""
+
+[pipe.analyze_fundamentals]
+type          = "PipeLLM"
+description   = "Stance fondamentale sur l'actif"
+inputs        = { ticker = "Text", snapshot = "Text", query = "Text" }
+output        = "Text"
+system_prompt = """
+Tu es l'analyste FONDAMENTAL d'une desk de trading IA. Tu evalues la valorisation et la sante
+financiere de l'entreprise (PER, capitalisation) par rapport a son secteur.
+Reponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format :
+{"stance": "bullish|bearish|neutral", "confidence": 0.0-1.0, "reasoning": "...", "key_points": ["...", "..."]}
+"""
+prompt = """
+Snapshot fondamental de $ticker :
+@snapshot
+
+Question de l'utilisateur : $query
+Donne ta stance fondamentale.
+"""
+
+[pipe.analyze_technical]
+type          = "PipeLLM"
+description   = "Stance technique basee sur le momentum 52 semaines"
+inputs        = { ticker = "Text", snapshot = "Text", query = "Text" }
+output        = "Text"
+system_prompt = """
+Tu es l'analyste TECHNIQUE d'une desk de trading IA. Tu evalues le momentum du titre a partir
+de sa position dans son range 52 semaines et de sa variation recente (effet '52-week high momentum').
+Reponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format :
+{"stance": "bullish|bearish|neutral", "confidence": 0.0-1.0, "reasoning": "...", "key_points": ["...", "..."]}
+"""
+prompt = """
+Donnees techniques de $ticker :
+@snapshot
+
+Question de l'utilisateur : $query
+Donne ta stance technique en t'appuyant sur ces chiffres.
+"""
+
+# ------------------------------------------------------------------
+# Etape 2 : l'agent risque challenge les 3 stances precedentes
+# ------------------------------------------------------------------
+[pipe.challenge_risk]
+type          = "PipeLLM"
+description   = "Challenge les 3 stances : contradictions, biais, risques non mentionnes"
+inputs        = { ticker = "Text", macro = "Text", fundamentals = "Text", technical = "Text" }
+output        = "Text"
+system_prompt = """
+Tu es l'analyste RISQUE / COMPLIANCE d'une desk de trading IA. Ton role est de challenger les
+autres analystes : reperer les contradictions entre leurs analyses, les biais, et les risques non
+mentionnes (volatilite, date de resultats proche, concentration sectorielle, liquidite). Ici
+'stance' represente ton niveau de confort global avec la these (bullish = peu de risque, bearish =
+risque eleve).
+Reponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format :
+{"stance": "bullish|bearish|neutral", "confidence": 0.0-1.0, "reasoning": "...", "key_points": ["...", "..."]}
+"""
+prompt = """
+Actif : $ticker
+
+Analyses des autres agents :
+@macro
+@fundamentals
+@technical
+
+Identifie les risques et contradictions, et donne ton verdict risque.
+"""
+
+# ------------------------------------------------------------------
+# Etape 3 : le portfolio manager arbitre et rend le memo final
+# ------------------------------------------------------------------
+[pipe.arbitrate]
+type          = "PipeLLM"
+description   = "Arbitrage final : recommandation BUY/HOLD/SELL et memo"
+inputs        = { ticker = "Text", query = "Text", macro = "Text", fundamentals = "Text", technical = "Text", risk = "Text" }
+output        = "Text"
+system_prompt = """
+Tu es le PORTFOLIO MANAGER d'une desk de trading IA. Tu recois les analyses de tes analystes
+(macro, fondamental, technique, risque) et tu dois trancher : produire une recommandation finale
+claire et un memo synthetique, en arbitrant explicitement les desaccords.
+Reponds UNIQUEMENT avec un objet JSON valide, sans texte autour, au format :
+{"recommendation": "BUY|HOLD|SELL", "confidence": 0.0-1.0, "memo": "...", "key_risks": ["...", "..."], "dissenting_views": "..."}
+"""
+prompt = """
+Actif : $ticker
+Question initiale : $query
+
+Analyses de l'equipe :
+@macro
+@fundamentals
+@technical
+@risk
+
+Synthetise ces analyses en une recommandation finale, en expliquant comment tu arbitres les
+desaccords entre analystes.
+"""

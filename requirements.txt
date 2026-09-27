@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+openai>=1.50
+python-dotenv
+pydantic
+requests
+gradium
+python-multipart
+mcp[cli]
+pytest
